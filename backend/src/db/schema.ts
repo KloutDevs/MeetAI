@@ -19,6 +19,7 @@ export const transcriptionJobs = pgTable('transcription_jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
   meetingId: uuid('meeting_id').references(() => meetings.id).notNull(),
   trackId: varchar('track_id', { length: 255 }).notNull(),
+  trackUrl: text('track_url'),
   participantId: uuid('participant_id').references(() => participants.id).notNull(),
   deepgramRequestId: varchar('deepgram_request_id', { length: 255 }),
   status: varchar('status', { length: 20 }).notNull().default('pending'),

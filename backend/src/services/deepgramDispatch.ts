@@ -46,6 +46,7 @@ export async function dispatchTrackForTranscription(params: DispatchParams): Pro
   await db.insert(transcriptionJobs).values({
     meetingId,
     trackId,
+    trackUrl,
     participantId,
     deepgramRequestId,
     status: 'pending'

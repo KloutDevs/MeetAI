@@ -54,6 +54,7 @@ describe('dispatchTrackForTranscription', () => {
     expect(valuesMock).toHaveBeenCalledWith(expect.objectContaining({
       meetingId: 'meeting-1',
       trackId: 'track-1',
+      trackUrl: 'https://bucket.s3.amazonaws.com/track-1.ogg',
       participantId: 'participant-1',
       status: 'pending'
     }))
