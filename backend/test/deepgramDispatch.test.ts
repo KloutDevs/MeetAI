@@ -50,6 +50,12 @@ describe('dispatchTrackForTranscription', () => {
     // JSON body field — Deepgram silently ignores a body-level `callback`
     // and processes synchronously instead of using the async ack shape.
     const requestUrl = new URL(calledUrl)
+
+    // Without language=multi, Deepgram's nova-3 defaults to English-only
+    // detection and silently returns an empty transcript for non-English
+    // speech (verified against real Spanish audio in production).
+    expect(requestUrl.searchParams.get('language')).toBe('multi')
+
     const callbackParam = requestUrl.searchParams.get('callback')
     expect(callbackParam).toContain('https://backend.example.com/webhooks/deepgram')
     expect(callbackParam).toContain('meetingId=meeting-1')
