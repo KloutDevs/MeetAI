@@ -45,7 +45,8 @@ describe('GET /meetings/:id/full', () => {
     findManyMocks.chapters.mockResolvedValue([{ title: 'Intro', start: 0, end: 30 }])
     findManyMocks.highlights.mockResolvedValue([{ type: 'question', timestamp: 12, quote: '¿cuándo?' }])
     findManyMocks.proposedTasks.mockResolvedValue([{ id: 'pt1', description: 'enviar informe', status: 'pendiente', assignee: null, sourceSpeakerId: 'p1', sourceTimestamp: 5, sourceQuote: 'hay que enviarlo' }])
-    findManyMocks.transcriptionJobs.mockResolvedValue([{ participantId: 'p1', trackId: 'p1.ogg', trackUrl: 'https://bucket.s3.amazonaws.com/p1.ogg' }])
+    const dispatchedAt = new Date('2026-01-01T10:00:00Z')
+    findManyMocks.transcriptionJobs.mockResolvedValue([{ participantId: 'p1', trackId: 'p1.ogg', trackUrl: 'https://bucket.s3.amazonaws.com/p1.ogg', status: 'completed', createdAt: dispatchedAt }])
 
     const app = buildServer()
     const response = await app.inject({ method: 'GET', url: '/meetings/meeting-1/full' })
@@ -55,6 +56,12 @@ describe('GET /meetings/:id/full', () => {
     expect(body.meeting).toEqual({ id: 'meeting-1', title: 'Weekly sync' })
     expect(body.participants).toEqual([{ id: 'p1', name: 'Ada' }])
     expect(body.tracks).toEqual([{ participantId: 'p1', url: 'https://bucket.s3.amazonaws.com/p1.ogg' }])
+    expect(body.transcriptionJobs).toEqual([{
+      trackId: 'p1.ogg',
+      participantId: 'p1',
+      status: 'completed',
+      dispatchedAt: dispatchedAt.toISOString()
+    }])
     expect(body.transcriptSegments).toHaveLength(1)
     expect(body.chapters).toHaveLength(1)
     expect(body.highlights).toHaveLength(1)

@@ -6,6 +6,7 @@ import { HighlightsTab } from './tabs/HighlightsTab.js'
 import { SummaryTab } from './tabs/SummaryTab.js'
 import { ApprovalsTab } from './tabs/ApprovalsTab.js'
 import { InsightsTab } from './tabs/InsightsTab.js'
+import { PipelineTab } from './tabs/PipelineTab.js'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3000'
 
@@ -17,6 +18,12 @@ export interface MeetingData {
   chapters: Array<{ title: string; start: number; end: number }>
   highlights: Array<{ type: string; timestamp: number; quote: string }>
   summary: { context: string; keyPoints: string; status: string } | null
+  transcriptionJobs: Array<{
+    trackId: string
+    participantId: string
+    status: string
+    dispatchedAt: string
+  }>
   proposedTasks: Array<{
     id: string
     description: string
@@ -28,16 +35,16 @@ export interface MeetingData {
   }>
 }
 
-const TABS = ['Speakers', 'Chapters', 'Highlights', 'Summary', 'Transcript', 'Approvals', 'Insights'] as const
+const TABS = ['Pipeline', 'Speakers', 'Chapters', 'Highlights', 'Summary', 'Transcript', 'Approvals', 'Insights'] as const
 type Tab = typeof TABS[number]
 
 export function MeetingReview({ meetingId }: { meetingId: string }) {
   const [data, setData] = useState<MeetingData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('Summary')
+  const [activeTab, setActiveTab] = useState<Tab>('Pipeline')
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  useEffect(() => {
+  function loadData() {
     fetch(`${BACKEND_URL}/meetings/${meetingId}/full`)
       .then((response) => {
         if (!response.ok) throw new Error(`Backend returned ${response.status}`)
@@ -45,6 +52,12 @@ export function MeetingReview({ meetingId }: { meetingId: string }) {
       })
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+  }
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 5000)
+    return () => clearInterval(interval)
   }, [meetingId])
 
   function seekTo(timestamp: number) {
@@ -75,14 +88,13 @@ export function MeetingReview({ meetingId }: { meetingId: string }) {
         ))}
       </nav>
 
+      {activeTab === 'Pipeline' && <PipelineTab data={data} />}
       {activeTab === 'Speakers' && <SpeakersTab data={data} onSeek={seekTo} />}
       {activeTab === 'Chapters' && <ChaptersTab data={data} onSeek={seekTo} />}
       {activeTab === 'Highlights' && <HighlightsTab data={data} onSeek={seekTo} />}
       {activeTab === 'Summary' && <SummaryTab data={data} />}
       {activeTab === 'Transcript' && <TranscriptTab data={data} onSeek={seekTo} />}
-      {activeTab === 'Approvals' && <ApprovalsTab data={data} backendUrl={BACKEND_URL} onChanged={() => {
-        fetch(`${BACKEND_URL}/meetings/${meetingId}/full`).then((r) => r.json()).then(setData)
-      }} />}
+      {activeTab === 'Approvals' && <ApprovalsTab data={data} backendUrl={BACKEND_URL} onChanged={loadData} />}
       {activeTab === 'Insights' && <InsightsTab data={data} />}
     </div>
   )
