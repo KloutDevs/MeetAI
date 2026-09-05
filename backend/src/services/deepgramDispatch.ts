@@ -27,11 +27,12 @@ export async function dispatchTrackForTranscription(params: DispatchParams): Pro
   // request_id nested under `metadata`) rather than the async ack shape
   // (`{ request_id }` at the top level) that the rest of this pipeline
   // depends on to correlate the later webhook callback.
-  // language=multi enables Deepgram's automatic language detection — without
-  // it, nova-3 defaults to English-only recognition and silently returns an
-  // empty transcript for non-English speech (verified against real Spanish
-  // audio: identical request without this param returned `words: []`).
-  const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-3&language=multi&callback=${encodeURIComponent(callbackUrl)}`
+  // language=es pins Spanish recognition explicitly — without a language
+  // param, nova-3 defaults to English-only and silently returns an empty
+  // transcript for non-English speech. Tested against real audio against
+  // language=multi (auto-detect) too; explicit `es` produced a more accurate
+  // transcript for this project's target audience (meetings in Spanish).
+  const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-3&language=es&callback=${encodeURIComponent(callbackUrl)}`
 
   const response = await fetch(deepgramUrl, {
     method: 'POST',

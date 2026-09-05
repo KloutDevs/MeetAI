@@ -51,10 +51,11 @@ describe('dispatchTrackForTranscription', () => {
     // and processes synchronously instead of using the async ack shape.
     const requestUrl = new URL(calledUrl)
 
-    // Without language=multi, Deepgram's nova-3 defaults to English-only
+    // Without an explicit language, Deepgram's nova-3 defaults to English-only
     // detection and silently returns an empty transcript for non-English
-    // speech (verified against real Spanish audio in production).
-    expect(requestUrl.searchParams.get('language')).toBe('multi')
+    // speech. es is pinned (over multi/auto-detect) because it produced a
+    // more accurate transcript against real Spanish meeting audio.
+    expect(requestUrl.searchParams.get('language')).toBe('es')
 
     const callbackParam = requestUrl.searchParams.get('callback')
     expect(callbackParam).toContain('https://backend.example.com/webhooks/deepgram')
