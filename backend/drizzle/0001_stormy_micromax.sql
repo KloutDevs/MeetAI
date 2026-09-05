@@ -1,0 +1,1 @@
+ALTER TABLE "transcription_jobs" ADD COLUMN "words" text;

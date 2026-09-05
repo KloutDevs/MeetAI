@@ -1,11 +1,13 @@
 import Fastify, { FastifyInstance } from 'fastify'
 import { registerLivekitWebhookRoute } from './routes/livekitWebhook.js'
+import { registerDeepgramWebhookRoute } from './routes/deepgramWebhook.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
 
   app.get('/health', async () => ({ status: 'ok' }))
   registerLivekitWebhookRoute(app)
+  registerDeepgramWebhookRoute(app)
 
   return app
 }

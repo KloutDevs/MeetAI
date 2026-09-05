@@ -22,6 +22,7 @@ export const transcriptionJobs = pgTable('transcription_jobs', {
   participantId: uuid('participant_id').references(() => participants.id).notNull(),
   deepgramRequestId: varchar('deepgram_request_id', { length: 255 }),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
+  words: text('words'), // JSON-stringified DeepgramWord[]
   createdAt: timestamp('created_at').notNull().defaultNow()
 }, (table) => ({
   uniqueTrackPerMeeting: unique().on(table.meetingId, table.trackId)

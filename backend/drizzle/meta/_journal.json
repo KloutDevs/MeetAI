@@ -8,6 +8,13 @@
       "when": 1788604884149,
       "tag": "0000_sturdy_proemial_gods",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788605688011,
+      "tag": "0001_stormy_micromax",
+      "breakpoints": true
     }
   ]
 }
