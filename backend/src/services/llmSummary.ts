@@ -49,6 +49,10 @@ async function callDeepSeek(prompt: string): Promise<unknown> {
     })
   })
 
+  if (!response.ok) {
+    throw new Error(`DeepSeek API returned ${response.status}: ${await response.text()}`)
+  }
+
   const body = await response.json() as { choices: Array<{ message: { content: string } }> }
   return JSON.parse(body.choices[0].message.content)
 }
@@ -60,12 +64,16 @@ export async function generateMeetingSummary(meetingId: string, segments: Transc
   let lastError: string | undefined
 
   for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-    const raw = await callDeepSeek(buildPrompt(transcript, lastError))
-    const result = LLMResponseSchema.safeParse(raw)
-    if (result.success) {
-      parsed = result.data
-    } else {
-      lastError = result.error.message
+    try {
+      const raw = await callDeepSeek(buildPrompt(transcript, lastError))
+      const result = LLMResponseSchema.safeParse(raw)
+      if (result.success) {
+        parsed = result.data
+      } else {
+        lastError = result.error.message
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error)
     }
   }
 

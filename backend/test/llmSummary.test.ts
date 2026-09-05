@@ -22,6 +22,14 @@ function deepseekResponse(content: string) {
   }
 }
 
+function deepseekErrorResponse(status: number, bodyText: string) {
+  return {
+    ok: false,
+    status,
+    text: async () => bodyText
+  }
+}
+
 describe('generateMeetingSummary', () => {
   beforeEach(() => {
     dbInsertMock.mockClear()
@@ -68,6 +76,32 @@ describe('generateMeetingSummary', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+  })
+
+  it('retries once when the first response is an HTTP error, then succeeds', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(deepseekErrorResponse(401, 'Unauthorized'))
+      .mockResolvedValueOnce(deepseekResponse(JSON.stringify(VALID_RESPONSE)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }))
+  })
+
+  it('persists a failed summary after two HTTP errors without throwing', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(deepseekErrorResponse(401, 'Unauthorized'))
+      .mockResolvedValueOnce(deepseekErrorResponse(429, 'Rate limited'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
+    ).resolves.toBeUndefined()
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
