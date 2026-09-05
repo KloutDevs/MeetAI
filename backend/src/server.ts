@@ -11,7 +11,7 @@ export function buildServer(): FastifyInstance {
 
   const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? '')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/^["']|["']$/g, '').replace(/\/$/, ''))
     .filter(Boolean)
 
   app.register(cors, {

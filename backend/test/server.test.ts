@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { buildServer } from '../src/server.js'
 
 describe('server', () => {
@@ -24,5 +24,34 @@ describe('CORS', () => {
     })
 
     expect(response.headers['access-control-allow-origin']).toBeDefined()
+  })
+
+  describe('FRONTEND_ORIGIN sanitization', () => {
+    const originalEnv = process.env.FRONTEND_ORIGIN
+
+    beforeEach(() => {
+      // Reproduces a real Railway UI gotcha: pasting FRONTEND_ORIGIN="https://foo/"
+      // literally into the variable value stores the quotes as part of the string.
+      process.env.FRONTEND_ORIGIN = '"https://meetai-front-production.up.railway.app/"'
+    })
+
+    afterEach(() => {
+      process.env.FRONTEND_ORIGIN = originalEnv
+    })
+
+    it('strips surrounding quotes and trailing slash before matching the real Origin header', async () => {
+      const app = buildServer()
+      await app.ready()
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/rooms',
+        headers: {
+          origin: 'https://meetai-front-production.up.railway.app',
+          'access-control-request-method': 'POST'
+        }
+      })
+
+      expect(response.headers['access-control-allow-origin']).toBe('https://meetai-front-production.up.railway.app')
+    })
   })
 })
