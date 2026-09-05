@@ -81,6 +81,18 @@ describe('generateMeetingSummary', () => {
     expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
+  it('logs the real underlying error when persisting a failed summary (e.g. insufficient API balance)', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchMock = vi.fn().mockResolvedValue(deepseekErrorResponse(400, 'Insufficient Balance'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('meeting-1'))
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Insufficient Balance'))
+    consoleErrorSpy.mockRestore()
+  })
+
   it('retries once when the first response is an HTTP error, then succeeds', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(deepseekErrorResponse(401, 'Unauthorized'))

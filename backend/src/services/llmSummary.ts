@@ -78,6 +78,7 @@ export async function generateMeetingSummary(meetingId: string, segments: Transc
   }
 
   if (!parsed) {
+    console.error(`Summary generation failed for meeting ${meetingId} after 2 attempts: ${lastError}`)
     await db.insert(summaries).values({ meetingId, status: 'failed' })
     return
   }
