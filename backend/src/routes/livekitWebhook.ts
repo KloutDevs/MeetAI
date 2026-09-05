@@ -1,8 +1,14 @@
 import type { FastifyInstance } from 'fastify'
-import { WebhookReceiver } from 'livekit-server-sdk'
+import { DirectFileOutput, EgressClient, TrackType, WebhookReceiver } from 'livekit-server-sdk'
 import { dispatchTrackForTranscription } from '../services/deepgramDispatch.js'
 
 const receiver = new WebhookReceiver(
+  process.env.LIVEKIT_API_KEY!,
+  process.env.LIVEKIT_API_SECRET!
+)
+
+const egressClient = new EgressClient(
+  process.env.LIVEKIT_URL!,
   process.env.LIVEKIT_API_KEY!,
   process.env.LIVEKIT_API_SECRET!
 )
@@ -30,6 +36,25 @@ export function registerLivekitWebhookRoute(app: FastifyInstance): void {
       const authHeader = request.headers.authorization ?? ''
 
       const event = await receiver.receive(body, authHeader)
+
+      // Unlike egressInfo.status below, WebhookEvent.fromJson (the real
+      // decode path used by WebhookReceiver.receive, verified against the
+      // installed livekit-server-sdk@2.9.0 / @livekit/protocol) decodes
+      // proto enum JSON names into their numeric TS enum values, so
+      // event.track.type really is the numeric TrackType and this direct
+      // comparison against TrackType.AUDIO (0) is correct as-is.
+      if (event.event === 'track_published') {
+        if (event.track?.type === TrackType.AUDIO) {
+          const roomName = event.room!.name
+          const participantId = event.participant!.identity
+          await egressClient.startTrackEgress(
+            roomName,
+            new DirectFileOutput({ filepath: `${roomName}/${participantId}.ogg` }),
+            event.track.sid
+          )
+        }
+        return reply.code(200).send({ received: true })
+      }
 
       // The SDK types egressInfo.status as the protobuf EgressStatus enum, but
       // the webhook payload's JSON representation transmits it as its string
