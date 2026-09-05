@@ -11,8 +11,12 @@ describe('db schema', () => {
       startedAt: new Date('2026-01-01T10:00:00Z')
     }).returning()
 
-    const [found] = await db.select().from(meetings).where(eq(meetings.id, inserted.id))
+    try {
+      const [found] = await db.select().from(meetings).where(eq(meetings.id, inserted.id))
 
-    expect(found.title).toBe('Test meeting')
+      expect(found.title).toBe('Test meeting')
+    } finally {
+      await db.delete(meetings).where(eq(meetings.id, inserted.id))
+    }
   })
 })
