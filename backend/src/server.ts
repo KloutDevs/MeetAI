@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify'
+import cors from '@fastify/cors'
 import { registerLivekitWebhookRoute } from './routes/livekitWebhook.js'
 import { registerDeepgramWebhookRoute } from './routes/deepgramWebhook.js'
 import { registerRoomsRoute } from './routes/rooms.js'
@@ -7,6 +8,15 @@ import { registerMeetingDataRoute } from './routes/meetingData.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
+
+  const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+  app.register(cors, {
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true
+  })
 
   app.get('/health', async () => ({ status: 'ok' }))
   registerLivekitWebhookRoute(app)

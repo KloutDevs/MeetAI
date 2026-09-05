@@ -9,3 +9,20 @@ describe('server', () => {
     expect(response.json()).toEqual({ status: 'ok' })
   })
 })
+
+describe('CORS', () => {
+  it('responds to a preflight OPTIONS request with Access-Control-Allow-Origin', async () => {
+    const app = buildServer()
+    await app.ready()
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/rooms',
+      headers: {
+        origin: 'https://meetai-front-production.up.railway.app',
+        'access-control-request-method': 'POST'
+      }
+    })
+
+    expect(response.headers['access-control-allow-origin']).toBeDefined()
+  })
+})
