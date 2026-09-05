@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { eq, and } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { summaries, chapters, highlights, proposedTasks } from '../db/schema.js'
 import { formatTranscriptForPrompt } from './transcriptFormatter.js'
@@ -81,6 +82,17 @@ export async function generateMeetingSummary(meetingId: string, segments: Transc
       lastError = error instanceof Error ? error.message : String(error)
     }
   }
+
+  // Idempotency: this function can run more than once for the same meeting
+  // (a manual retry, or an automatic re-run triggered by a redispatched
+  // transcription). Clear the previous summary/chapters/highlights before
+  // inserting so repeated runs converge instead of accumulating duplicate
+  // rows. Proposed tasks already approved/rejected are left alone — deleting
+  // an approved one would orphan the real Task row that points at it.
+  await db.delete(summaries).where(eq(summaries.meetingId, meetingId))
+  await db.delete(chapters).where(eq(chapters.meetingId, meetingId))
+  await db.delete(highlights).where(eq(highlights.meetingId, meetingId))
+  await db.delete(proposedTasks).where(and(eq(proposedTasks.meetingId, meetingId), eq(proposedTasks.status, 'pendiente')))
 
   if (!parsed) {
     console.error(`Summary generation failed for meeting ${meetingId} after 2 attempts: ${lastError}`)

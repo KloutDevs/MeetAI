@@ -36,7 +36,8 @@ function hasUsableTranscript(words: string | null): boolean {
 // the meeting from being retried.
 export async function retryMeetingTranscription(
   meetingId: string,
-  participantIds: string[]
+  participantIds: string[],
+  options: { force?: boolean } = {}
 ): Promise<{ retried: string[]; failed: Array<{ participantId: string; error: string }> }> {
   const retried: string[] = []
   const failed: Array<{ participantId: string; error: string }> = []
@@ -49,7 +50,11 @@ export async function retryMeetingTranscription(
         where: (j, { eq: eqFn, and: andFn }) => andFn(eqFn(j.meetingId, meetingId), eqFn(j.trackId, trackId))
       })
 
-      if (existingJob?.status === 'completed' && hasUsableTranscript(existingJob.words)) {
+      // force=true redispatches even a job that already completed with a
+      // real transcript — used when the transcript itself is stale/wrong
+      // (e.g. dispatched with language=multi before language=es was pinned),
+      // not just when it's missing or empty.
+      if (!options.force && existingJob?.status === 'completed' && hasUsableTranscript(existingJob.words)) {
         continue
       }
 

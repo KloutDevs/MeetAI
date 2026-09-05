@@ -31,12 +31,19 @@ export function PipelineTab({
   const [retryMessage, setRetryMessage] = useState<string | null>(null)
   const [retryFailures, setRetryFailures] = useState<Array<{ participantId: string; error: string }>>([])
 
-  async function retryTranscription() {
+  const [summaryRetrying, setSummaryRetrying] = useState(false)
+  const [summaryRetryMessage, setSummaryRetryMessage] = useState<string | null>(null)
+
+  async function retryTranscription(force: boolean) {
     setRetrying(true)
     setRetryMessage(null)
     setRetryFailures([])
     try {
-      const response = await fetch(`${backendUrl}/meetings/${meetingId}/retry-transcription`, { method: 'POST' })
+      const response = await fetch(`${backendUrl}/meetings/${meetingId}/retry-transcription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force })
+      })
       if (!response.ok) {
         setRetryMessage(`No se pudo reenviar (status ${response.status})`)
         return
@@ -59,14 +66,43 @@ export function PipelineTab({
     }
   }
 
+  async function retrySummary() {
+    setSummaryRetrying(true)
+    setSummaryRetryMessage(null)
+    try {
+      const response = await fetch(`${backendUrl}/meetings/${meetingId}/retry-summary`, { method: 'POST' })
+      if (response.status === 400) {
+        const body = await response.json() as { message?: string }
+        setSummaryRetryMessage(body.message ?? 'Todavía no hay transcripción disponible.')
+        return
+      }
+      if (!response.ok) {
+        setSummaryRetryMessage(`No se pudo reenviar (status ${response.status})`)
+        return
+      }
+      const { status } = await response.json() as { status: string }
+      setSummaryRetryMessage(status === 'completed' ? 'Resumen generado con éxito.' : 'La IA no pudo generar el resumen (revisá los logs del backend).')
+      onChanged()
+    } catch {
+      setSummaryRetryMessage('No se pudo conectar con el servidor para reenviar.')
+    } finally {
+      setSummaryRetrying(false)
+    }
+  }
+
   return (
     <div>
       <h2 className="section-title">Procesamiento</h2>
       <p className="section-lead">Estado técnico de la transcripción y el análisis de la reunión.</p>
       {data.transcriptionJobs.length === 0 && <div className="empty-state">Todavía no se despachó ninguna pista a Deepgram.</div>}
-      <button className="secondary-button" onClick={retryTranscription} disabled={retrying}>
-        {retrying ? 'Reenviando...' : 'Reenviar audio a Deepgram'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="secondary-button" onClick={() => retryTranscription(false)} disabled={retrying}>
+          {retrying ? 'Reenviando...' : 'Reenviar pendientes/vacíos a Deepgram'}
+        </button>
+        <button className="secondary-button" onClick={() => retryTranscription(true)} disabled={retrying}>
+          {retrying ? 'Reenviando...' : 'Forzar reenvío completo (borra y vuelve a transcribir todo)'}
+        </button>
+      </div>
       {retryMessage && <p>{retryMessage}</p>}
       {retryFailures.length > 0 && (
         <ul className="error-text">
@@ -89,6 +125,15 @@ export function PipelineTab({
       {!allJobsTerminal && <p>Todavía faltan pistas por transcribir — la IA arranca recién cuando todas terminan.</p>}
       {allJobsTerminal && !data.summary && <p>Todas las pistas terminaron, esperando a que la IA arranque a procesar.</p>}
       {data.summary && <p>{SUMMARY_STATUS_LABEL[data.summary.status] ?? data.summary.status}</p>}
+
+      {allJobsTerminal && (
+        <>
+          <button className="secondary-button" onClick={retrySummary} disabled={summaryRetrying}>
+            {summaryRetrying ? 'Reenviando...' : 'Reenviar a Groq'}
+          </button>
+          {summaryRetryMessage && <p>{summaryRetryMessage}</p>}
+        </>
+      )}
 
       {data.summary?.status === 'completed' && (
         <div className="metrics">

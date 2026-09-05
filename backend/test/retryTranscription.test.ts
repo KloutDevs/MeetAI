@@ -68,6 +68,16 @@ describe('retryMeetingTranscription', () => {
     expect(result.retried).toEqual(['p1'])
   })
 
+  it('force=true redispatches even a job already completed with a real transcript (e.g. stale language=multi run)', async () => {
+    findFirstMock.mockResolvedValueOnce({ id: 'job-1', status: 'completed', words: JSON.stringify([{ word: 'hello', start: 0, end: 0.3, confidence: 0.9 }]) })
+
+    const result = await retryMeetingTranscription('meeting-1', ['p1'], { force: true })
+
+    expect(deleteMock).toHaveBeenCalled()
+    expect(dispatchMock).toHaveBeenCalledTimes(1)
+    expect(result.retried).toEqual(['p1'])
+  })
+
   it('continues retrying remaining participants when one fails (e.g. missing audio in S3)', async () => {
     findFirstMock.mockResolvedValue(undefined)
     dispatchMock

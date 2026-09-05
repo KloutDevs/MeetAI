@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const insertValuesMock = vi.fn().mockResolvedValue(undefined)
 const dbInsertMock = vi.fn(() => ({ values: insertValuesMock }))
+const deleteWhereMock = vi.fn().mockResolvedValue(undefined)
+const dbDeleteMock = vi.fn(() => ({ where: deleteWhereMock }))
 vi.mock('../src/db/client.js', () => ({
-  db: { insert: () => dbInsertMock() }
+  db: { insert: () => dbInsertMock(), delete: () => dbDeleteMock() }
 }))
 
 const { generateMeetingSummary } = await import('../src/services/llmSummary.js')
@@ -34,6 +36,8 @@ describe('generateMeetingSummary', () => {
   beforeEach(() => {
     dbInsertMock.mockClear()
     insertValuesMock.mockClear()
+    dbDeleteMock.mockClear()
+    deleteWhereMock.mockClear()
     process.env.GROQ_API_KEY = 'test-key'
   })
 
@@ -52,6 +56,16 @@ describe('generateMeetingSummary', () => {
       context: 'Contexto de prueba',
       status: 'completed'
     }))
+  })
+
+  it('clears any previous summary/chapters/highlights before inserting new ones (idempotent re-run)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(llmResponse(JSON.stringify(VALID_RESPONSE)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
+
+    // 4 deletes: summaries, chapters, highlights, proposedTasks(pendiente)
+    expect(dbDeleteMock).toHaveBeenCalledTimes(4)
   })
 
   it('retries once with the validation error embedded when the first response is invalid JSON shape, then succeeds', async () => {

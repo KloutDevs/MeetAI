@@ -6,6 +6,7 @@ import { registerRoomsRoute } from './routes/rooms.js'
 import { registerProposedTasksRoute } from './routes/proposedTasks.js'
 import { registerMeetingDataRoute } from './routes/meetingData.js'
 import { registerRetryTranscriptionRoute } from './routes/retryTranscription.js'
+import { registerRetrySummaryRoute } from './routes/retrySummary.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
@@ -26,6 +27,7 @@ export function buildServer(): FastifyInstance {
   registerProposedTasksRoute(app)
   registerMeetingDataRoute(app)
   registerRetryTranscriptionRoute(app)
+  registerRetrySummaryRoute(app)
 
   return app
 }

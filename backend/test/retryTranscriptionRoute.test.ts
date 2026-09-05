@@ -41,7 +41,23 @@ describe('POST /meetings/:id/retry-transcription', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ retried: ['p1'], failed: [] })
-    expect(retryMock).toHaveBeenCalledWith('meeting-1', ['p1', 'p2'])
+    expect(retryMock).toHaveBeenCalledWith('meeting-1', ['p1', 'p2'], { force: false })
+  })
+
+  it('passes force=true through to the service when requested', async () => {
+    findFirstMocks.meetings.mockResolvedValue({ id: 'meeting-1', title: 'Weekly sync' })
+    findManyMocks.participants.mockResolvedValue([{ id: 'p1', name: 'Ada' }])
+    retryMock.mockResolvedValue({ retried: ['p1'], failed: [] })
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/meetings/meeting-1/retry-transcription',
+      payload: { force: true }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(retryMock).toHaveBeenCalledWith('meeting-1', ['p1'], { force: true })
   })
 
   it('returns 404 when the meeting does not exist', async () => {
