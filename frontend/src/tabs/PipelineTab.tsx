@@ -29,18 +29,28 @@ export function PipelineTab({
   const allJobsTerminal = data.transcriptionJobs.every((job) => job.status !== 'pending')
   const [retrying, setRetrying] = useState(false)
   const [retryMessage, setRetryMessage] = useState<string | null>(null)
+  const [retryFailures, setRetryFailures] = useState<Array<{ participantId: string; error: string }>>([])
 
   async function retryTranscription() {
     setRetrying(true)
     setRetryMessage(null)
+    setRetryFailures([])
     try {
       const response = await fetch(`${backendUrl}/meetings/${meetingId}/retry-transcription`, { method: 'POST' })
       if (!response.ok) {
         setRetryMessage(`No se pudo reenviar (status ${response.status})`)
         return
       }
-      const { retried } = await response.json() as { retried: string[] }
-      setRetryMessage(retried.length > 0 ? `Reenviadas ${retried.length} pista(s) a Deepgram.` : 'No había nada pendiente de reenviar.')
+      const { retried, failed } = await response.json() as {
+        retried: string[]
+        failed: Array<{ participantId: string; error: string }>
+      }
+      if (retried.length === 0 && failed.length === 0) {
+        setRetryMessage('No había nada pendiente de reenviar.')
+      } else {
+        setRetryMessage(`Reenviadas ${retried.length} pista(s) a Deepgram.${failed.length > 0 ? ` ${failed.length} fallaron.` : ''}`)
+      }
+      setRetryFailures(failed)
       onChanged()
     } catch {
       setRetryMessage('No se pudo conectar con el servidor para reenviar.')
@@ -57,6 +67,13 @@ export function PipelineTab({
         {retrying ? 'Reenviando...' : 'Reenviar audio a Deepgram'}
       </button>
       {retryMessage && <p>{retryMessage}</p>}
+      {retryFailures.length > 0 && (
+        <ul style={{ color: '#b00' }}>
+          {retryFailures.map((f) => (
+            <li key={f.participantId}>{nameById.get(f.participantId) ?? f.participantId}: {f.error}</li>
+          ))}
+        </ul>
+      )}
       <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>

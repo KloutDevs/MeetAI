@@ -57,4 +57,19 @@ describe('retryMeetingTranscription', () => {
     expect(dispatchMock).toHaveBeenCalledTimes(1)
     expect(result.retried).toEqual(['p1'])
   })
+
+  it('continues retrying remaining participants when one fails (e.g. missing audio in S3)', async () => {
+    findFirstMock.mockResolvedValue(undefined)
+    dispatchMock
+      .mockRejectedValueOnce(new Error('Deepgram dispatch failed for track meeting-1/p1.ogg: 400'))
+      .mockResolvedValueOnce(undefined)
+
+    const result = await retryMeetingTranscription('meeting-1', ['p1', 'p2'])
+
+    expect(dispatchMock).toHaveBeenCalledTimes(2)
+    expect(result.retried).toEqual(['p2'])
+    expect(result.failed).toEqual([
+      { participantId: 'p1', error: 'Deepgram dispatch failed for track meeting-1/p1.ogg: 400' }
+    ])
+  })
 })

@@ -34,13 +34,13 @@ describe('POST /meetings/:id/retry-transcription', () => {
   it('retries transcription for all participants of the meeting', async () => {
     findFirstMocks.meetings.mockResolvedValue({ id: 'meeting-1', title: 'Weekly sync' })
     findManyMocks.participants.mockResolvedValue([{ id: 'p1', name: 'Ada' }, { id: 'p2', name: 'Bea' }])
-    retryMock.mockResolvedValue({ retried: ['p1'] })
+    retryMock.mockResolvedValue({ retried: ['p1'], failed: [] })
 
     const app = buildServer()
     const response = await app.inject({ method: 'POST', url: '/meetings/meeting-1/retry-transcription' })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json()).toEqual({ retried: ['p1'] })
+    expect(response.json()).toEqual({ retried: ['p1'], failed: [] })
     expect(retryMock).toHaveBeenCalledWith('meeting-1', ['p1', 'p2'])
   })
 

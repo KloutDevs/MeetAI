@@ -14,34 +14,48 @@ function trackUrlFor(meetingId: string, participantId: string): string {
 // LiveKit's egress already uploaded the audio to S3, but the Deepgram
 // dispatch call itself failed (e.g. before this bug was fixed) and no
 // callback was ever going to arrive to move things forward on its own.
-export async function retryMeetingTranscription(meetingId: string, participantIds: string[]): Promise<{ retried: string[] }> {
+//
+// A participant can legitimately have no audio at all (e.g. they opened the
+// join link twice and only one of the two sessions ever published a track).
+// Retrying one participant must never abort the others — each attempt is
+// isolated so one missing/broken track doesn't silently block the rest of
+// the meeting from being retried.
+export async function retryMeetingTranscription(
+  meetingId: string,
+  participantIds: string[]
+): Promise<{ retried: string[]; failed: Array<{ participantId: string; error: string }> }> {
   const retried: string[] = []
+  const failed: Array<{ participantId: string; error: string }> = []
 
   for (const participantId of participantIds) {
     const trackId = `${meetingId}/${participantId}.ogg`
 
-    const existingJob = await db.query.transcriptionJobs.findFirst({
-      where: (j, { eq: eqFn, and: andFn }) => andFn(eqFn(j.meetingId, meetingId), eqFn(j.trackId, trackId))
-    })
+    try {
+      const existingJob = await db.query.transcriptionJobs.findFirst({
+        where: (j, { eq: eqFn, and: andFn }) => andFn(eqFn(j.meetingId, meetingId), eqFn(j.trackId, trackId))
+      })
 
-    if (existingJob?.status === 'completed') {
-      continue
+      if (existingJob?.status === 'completed') {
+        continue
+      }
+
+      if (existingJob) {
+        await db.delete(transcriptionJobs).where(eq(transcriptionJobs.id, existingJob.id))
+      }
+
+      await dispatchTrackForTranscription({
+        meetingId,
+        trackId,
+        participantId,
+        trackUrl: trackUrlFor(meetingId, participantId),
+        callbackBaseUrl: process.env.BACKEND_PUBLIC_URL!
+      })
+
+      retried.push(participantId)
+    } catch (err) {
+      failed.push({ participantId, error: err instanceof Error ? err.message : String(err) })
     }
-
-    if (existingJob) {
-      await db.delete(transcriptionJobs).where(eq(transcriptionJobs.id, existingJob.id))
-    }
-
-    await dispatchTrackForTranscription({
-      meetingId,
-      trackId,
-      participantId,
-      trackUrl: trackUrlFor(meetingId, participantId),
-      callbackBaseUrl: process.env.BACKEND_PUBLIC_URL!
-    })
-
-    retried.push(participantId)
   }
 
-  return { retried }
+  return { retried, failed }
 }
