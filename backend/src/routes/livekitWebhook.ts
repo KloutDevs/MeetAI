@@ -1,6 +1,33 @@
 import type { FastifyInstance } from 'fastify'
-import { DirectFileOutput, EgressClient, EgressStatus, TrackType, WebhookReceiver } from 'livekit-server-sdk'
+import { DirectFileOutput, EgressClient, EgressStatus, S3Upload, TrackType, WebhookReceiver } from 'livekit-server-sdk'
 import { dispatchTrackForTranscription } from '../services/deepgramDispatch.js'
+
+function s3Output(filepath: string): DirectFileOutput {
+  return new DirectFileOutput({
+    filepath,
+    output: {
+      case: 's3',
+      value: new S3Upload({
+        accessKey: process.env.S3_ACCESS_KEY!,
+        secret: process.env.S3_SECRET_KEY!,
+        bucket: process.env.S3_BUCKET!,
+        region: process.env.S3_REGION ?? 'auto',
+        endpoint: process.env.S3_ENDPOINT!,
+        forcePathStyle: true
+      })
+    }
+  })
+}
+
+// LiveKit's egress_ended callback reports `location` as the S3 API endpoint
+// URL (private, not fetchable by Deepgram). We rebuild the public URL from
+// our own known S3_ENDPOINT/S3_BUCKET -> S3_PUBLIC_URL mapping instead of
+// trusting `location` directly.
+function toPublicUrl(location: string): string {
+  const publicUrl = process.env.S3_PUBLIC_URL!
+  const privatePrefix = `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`
+  return location.replace(privatePrefix, publicUrl)
+}
 
 const receiver = new WebhookReceiver(
   process.env.LIVEKIT_API_KEY!,
@@ -50,7 +77,7 @@ export function registerLivekitWebhookRoute(app: FastifyInstance): void {
           const participantId = event.participant!.identity
           await egressClient.startTrackEgress(
             roomName,
-            new DirectFileOutput({ filepath: `${roomName}/${participantId}.ogg` }),
+            s3Output(`${roomName}/${participantId}.ogg`),
             event.track.sid
           )
         }
@@ -70,7 +97,7 @@ export function registerLivekitWebhookRoute(app: FastifyInstance): void {
           meetingId,
           trackId: file.filename,
           participantId: resolveParticipantId(file.filename),
-          trackUrl: file.location,
+          trackUrl: toPublicUrl(file.location),
           callbackBaseUrl
         })
       }
