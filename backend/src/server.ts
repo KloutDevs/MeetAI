@@ -3,6 +3,7 @@ import { registerLivekitWebhookRoute } from './routes/livekitWebhook.js'
 import { registerDeepgramWebhookRoute } from './routes/deepgramWebhook.js'
 import { registerRoomsRoute } from './routes/rooms.js'
 import { registerProposedTasksRoute } from './routes/proposedTasks.js'
+import { registerMeetingDataRoute } from './routes/meetingData.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
@@ -12,6 +13,7 @@ export function buildServer(): FastifyInstance {
   registerDeepgramWebhookRoute(app)
   registerRoomsRoute(app)
   registerProposedTasksRoute(app)
+  registerMeetingDataRoute(app)
 
   return app
 }
