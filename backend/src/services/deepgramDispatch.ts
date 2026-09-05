@@ -18,18 +18,24 @@ export async function dispatchTrackForTranscription(params: DispatchParams): Pro
     throw new Error('DEEPGRAM_API_KEY environment variable is not set')
   }
 
-  const callbackUrl = `${callbackBaseUrl}/webhooks/deepgram?meetingId=${meetingId}&trackId=${trackId}`
+  const callbackUrl = `${callbackBaseUrl}/webhooks/deepgram?meetingId=${encodeURIComponent(meetingId)}&trackId=${encodeURIComponent(trackId)}`
 
-  const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-3', {
+  // Deepgram's async callback mode requires `callback` as a query parameter
+  // on the request URL, not as a field in the JSON body — passing it in the
+  // body causes Deepgram to silently ignore it and process synchronously
+  // instead, returning full transcription results immediately (with
+  // request_id nested under `metadata`) rather than the async ack shape
+  // (`{ request_id }` at the top level) that the rest of this pipeline
+  // depends on to correlate the later webhook callback.
+  const deepgramUrl = `https://api.deepgram.com/v1/listen?model=nova-3&callback=${encodeURIComponent(callbackUrl)}`
+
+  const response = await fetch(deepgramUrl, {
     method: 'POST',
     headers: {
       Authorization: `Token ${apiKey}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      url: trackUrl,
-      callback: callbackUrl
-    })
+    body: JSON.stringify({ url: trackUrl })
   })
 
   if (!response.ok) {

@@ -44,12 +44,20 @@ describe('dispatchTrackForTranscription', () => {
       })
     )
 
-    const [, options] = fetchMock.mock.calls[0]
+    const [calledUrl, options] = fetchMock.mock.calls[0]
+
+    // callback must be a query parameter on the Deepgram request URL, not a
+    // JSON body field — Deepgram silently ignores a body-level `callback`
+    // and processes synchronously instead of using the async ack shape.
+    const requestUrl = new URL(calledUrl)
+    const callbackParam = requestUrl.searchParams.get('callback')
+    expect(callbackParam).toContain('https://backend.example.com/webhooks/deepgram')
+    expect(callbackParam).toContain('meetingId=meeting-1')
+    expect(callbackParam).toContain('trackId=track-1')
+
     const body = JSON.parse(options.body)
     expect(body.url).toBe('https://bucket.s3.amazonaws.com/track-1.ogg')
-    expect(body.callback).toContain('https://backend.example.com/webhooks/deepgram')
-    expect(body.callback).toContain('meetingId=meeting-1')
-    expect(body.callback).toContain('trackId=track-1')
+    expect(body.callback).toBeUndefined()
 
     expect(valuesMock).toHaveBeenCalledWith(expect.objectContaining({
       meetingId: 'meeting-1',
