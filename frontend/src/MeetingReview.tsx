@@ -88,7 +88,7 @@ export function MeetingReview({ meetingId }: { meetingId: string }) {
         ))}
       </nav>
 
-      {activeTab === 'Pipeline' && <PipelineTab data={data} />}
+      {activeTab === 'Pipeline' && <PipelineTab data={data} backendUrl={BACKEND_URL} meetingId={meetingId} onChanged={loadData} />}
       {activeTab === 'Speakers' && <SpeakersTab data={data} onSeek={seekTo} />}
       {activeTab === 'Chapters' && <ChaptersTab data={data} onSeek={seekTo} />}
       {activeTab === 'Highlights' && <HighlightsTab data={data} onSeek={seekTo} />}

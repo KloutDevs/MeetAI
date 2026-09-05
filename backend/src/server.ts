@@ -5,6 +5,7 @@ import { registerDeepgramWebhookRoute } from './routes/deepgramWebhook.js'
 import { registerRoomsRoute } from './routes/rooms.js'
 import { registerProposedTasksRoute } from './routes/proposedTasks.js'
 import { registerMeetingDataRoute } from './routes/meetingData.js'
+import { registerRetryTranscriptionRoute } from './routes/retryTranscription.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
@@ -24,6 +25,7 @@ export function buildServer(): FastifyInstance {
   registerRoomsRoute(app)
   registerProposedTasksRoute(app)
   registerMeetingDataRoute(app)
+  registerRetryTranscriptionRoute(app)
 
   return app
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { MeetingData } from '../MeetingReview.js'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -13,14 +14,49 @@ const SUMMARY_STATUS_LABEL: Record<string, string> = {
   failed: 'La IA no pudo generar el resumen'
 }
 
-export function PipelineTab({ data }: { data: MeetingData }) {
+export function PipelineTab({
+  data,
+  backendUrl,
+  meetingId,
+  onChanged
+}: {
+  data: MeetingData
+  backendUrl: string
+  meetingId: string
+  onChanged: () => void
+}) {
   const nameById = new Map(data.participants.map((p) => [p.id, p.name]))
   const allJobsTerminal = data.transcriptionJobs.every((job) => job.status !== 'pending')
+  const [retrying, setRetrying] = useState(false)
+  const [retryMessage, setRetryMessage] = useState<string | null>(null)
+
+  async function retryTranscription() {
+    setRetrying(true)
+    setRetryMessage(null)
+    try {
+      const response = await fetch(`${backendUrl}/meetings/${meetingId}/retry-transcription`, { method: 'POST' })
+      if (!response.ok) {
+        setRetryMessage(`No se pudo reenviar (status ${response.status})`)
+        return
+      }
+      const { retried } = await response.json() as { retried: string[] }
+      setRetryMessage(retried.length > 0 ? `Reenviadas ${retried.length} pista(s) a Deepgram.` : 'No había nada pendiente de reenviar.')
+      onChanged()
+    } catch {
+      setRetryMessage('No se pudo conectar con el servidor para reenviar.')
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   return (
     <div>
       <h2>Transcripción por pista (Deepgram)</h2>
       {data.transcriptionJobs.length === 0 && <p>Todavía no se despachó ninguna pista a Deepgram.</p>}
+      <button onClick={retryTranscription} disabled={retrying}>
+        {retrying ? 'Reenviando...' : 'Reenviar audio a Deepgram'}
+      </button>
+      {retryMessage && <p>{retryMessage}</p>}
       <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>
