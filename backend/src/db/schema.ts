@@ -36,3 +36,46 @@ export const transcriptSegments = pgTable('transcript_segments', {
   end: doublePrecision('end').notNull(),
   text: text('text').notNull()
 })
+
+export const summaries = pgTable('summaries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetingId: uuid('meeting_id').references(() => meetings.id).notNull(),
+  context: text('context'),
+  keyPoints: text('key_points'),
+  status: varchar('status', { length: 20 }).notNull().default('pending')
+})
+
+export const chapters = pgTable('chapters', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetingId: uuid('meeting_id').references(() => meetings.id).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  start: doublePrecision('start').notNull(),
+  end: doublePrecision('end').notNull()
+})
+
+export const highlights = pgTable('highlights', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetingId: uuid('meeting_id').references(() => meetings.id).notNull(),
+  type: varchar('type', { length: 50 }).notNull(),
+  timestamp: doublePrecision('timestamp').notNull(),
+  quote: text('quote').notNull()
+})
+
+export const proposedTasks = pgTable('proposed_tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetingId: uuid('meeting_id').references(() => meetings.id).notNull(),
+  description: text('description').notNull(),
+  sourceSpeakerId: uuid('source_speaker_id').references(() => participants.id),
+  sourceTimestamp: doublePrecision('source_timestamp'),
+  sourceQuote: text('source_quote'),
+  status: varchar('status', { length: 20 }).notNull().default('pendiente'),
+  assignee: varchar('assignee', { length: 255 })
+})
+
+export const tasks = pgTable('tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  proposedTaskId: uuid('proposed_task_id').references(() => proposedTasks.id).notNull(),
+  description: text('description').notNull(),
+  assignee: varchar('assignee', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+})
