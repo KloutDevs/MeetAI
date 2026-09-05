@@ -17,8 +17,15 @@ export async function checkMeetingCompletion(meetingId: string): Promise<void> {
   const tracks = jobs
     .filter((job) => job.status === 'completed' && job.words)
     .map((job) => {
-      const words = JSON.parse(job.words as string) as DeepgramWord[]
-      return wordsToSegments(words, job.participantId)
+      try {
+        const words = JSON.parse(job.words as string) as DeepgramWord[]
+        return wordsToSegments(words, job.participantId)
+      } catch (err) {
+        console.error(
+          `Failed to parse words for transcription job (meetingId=${meetingId}, participantId=${job.participantId}): ${err instanceof Error ? err.message : String(err)}`
+        )
+        return []
+      }
     })
 
   const merged = mergeTracks(tracks)

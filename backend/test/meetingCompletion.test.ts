@@ -30,6 +30,34 @@ describe('checkMeetingCompletion', () => {
     expect(insertValuesMock).not.toHaveBeenCalled()
   })
 
+  it('does not insert when all jobs are terminal but none completed with words', async () => {
+    findManyMock.mockResolvedValue([
+      { status: 'failed', participantId: 'p1', words: null },
+      { status: 'timeout', participantId: 'p2', words: null }
+    ])
+
+    await checkMeetingCompletion('meeting-1')
+
+    expect(insertValuesMock).not.toHaveBeenCalled()
+  })
+
+  it('skips a job whose words fail to parse and still persists valid tracks', async () => {
+    findManyMock.mockResolvedValue([
+      {
+        status: 'completed',
+        participantId: 'p1',
+        words: JSON.stringify([{ word: 'hola', start: 0, end: 0.3, confidence: 0.9 }])
+      },
+      { status: 'completed', participantId: 'p2', words: '{not valid json' }
+    ])
+
+    await checkMeetingCompletion('meeting-1')
+
+    expect(insertValuesMock).toHaveBeenCalledWith([
+      { meetingId: 'meeting-1', speakerId: 'p1', start: 0, end: 0.3, text: 'hola' }
+    ])
+  })
+
   it('merges and persists segments once all jobs reach a terminal state', async () => {
     findManyMock.mockResolvedValue([
       {
