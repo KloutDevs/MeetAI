@@ -58,4 +58,58 @@ describe('dispatchTrackForTranscription', () => {
       status: 'pending'
     }))
   })
+
+  it('throws and does not insert when Deepgram responds with a non-ok status', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(dispatchTrackForTranscription({
+      meetingId: 'meeting-1',
+      trackId: 'track-1',
+      participantId: 'participant-1',
+      trackUrl: 'https://bucket.s3.amazonaws.com/track-1.ogg',
+      callbackBaseUrl: 'https://backend.example.com'
+    })).rejects.toThrow()
+
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when Deepgram response is missing request_id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(dispatchTrackForTranscription({
+      meetingId: 'meeting-1',
+      trackId: 'track-1',
+      participantId: 'participant-1',
+      trackUrl: 'https://bucket.s3.amazonaws.com/track-1.ogg',
+      callbackBaseUrl: 'https://backend.example.com'
+    })).rejects.toThrow('Deepgram response missing request_id for track track-1')
+
+    expect(insertMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when DEEPGRAM_API_KEY is not set', async () => {
+    delete process.env.DEEPGRAM_API_KEY
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(dispatchTrackForTranscription({
+      meetingId: 'meeting-1',
+      trackId: 'track-1',
+      participantId: 'participant-1',
+      trackUrl: 'https://bucket.s3.amazonaws.com/track-1.ogg',
+      callbackBaseUrl: 'https://backend.example.com'
+    })).rejects.toThrow('DEEPGRAM_API_KEY')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(insertMock).not.toHaveBeenCalled()
+  })
 })
