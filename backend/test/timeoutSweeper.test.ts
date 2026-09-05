@@ -36,4 +36,30 @@ describe('sweepTimedOutJobs', () => {
     expect(updateSetMock).toHaveBeenCalledWith({ status: 'timeout' })
     expect(checkCompletionMock).toHaveBeenCalledWith('meeting-1')
   })
+
+  it('dedupes meetingIds so checkMeetingCompletion is called once per meeting, not once per job', async () => {
+    findManyMock.mockResolvedValue([
+      { id: 'job-1', meetingId: 'meeting-1', status: 'pending', createdAt: new Date('2026-01-01T10:00:00Z') },
+      { id: 'job-2', meetingId: 'meeting-1', status: 'pending', createdAt: new Date('2026-01-01T10:01:00Z') }
+    ])
+
+    const now = new Date('2026-01-01T10:20:00Z')
+    await sweepTimedOutJobs(now)
+
+    expect(updateSetMock).toHaveBeenCalledTimes(2)
+    expect(checkCompletionMock).toHaveBeenCalledTimes(1)
+    expect(checkCompletionMock).toHaveBeenCalledWith('meeting-1')
+  })
+
+  it('does not mark a job as timeout when it is under the 15-minute threshold', async () => {
+    findManyMock.mockResolvedValue([
+      { id: 'job-3', meetingId: 'meeting-2', status: 'pending', createdAt: new Date('2026-01-01T10:00:00Z') }
+    ])
+
+    const now = new Date('2026-01-01T10:10:00Z')
+    await sweepTimedOutJobs(now)
+
+    expect(updateSetMock).not.toHaveBeenCalled()
+    expect(checkCompletionMock).not.toHaveBeenCalled()
+  })
 })
