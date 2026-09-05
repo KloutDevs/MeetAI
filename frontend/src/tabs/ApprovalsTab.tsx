@@ -34,19 +34,23 @@ export function ApprovalsTab({
     onChanged()
   }
 
-  if (pending.length === 0) return <p>No hay tareas pendientes de aprobación.</p>
+  if (pending.length === 0) return <div className="empty-state">No hay tareas pendientes de aprobación.</div>
 
   return (
     <div>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <h2 className="section-title">Tareas propuestas</h2>
+      <p className="section-lead">Revisá las acciones detectadas por IA antes de agregarlas al flujo de trabajo.</p>
+      {error && <p className="error-text">{error}</p>}
+      <div className="stack-list">
       {pending.map((task) => (
-        <div key={task.id} style={{ marginBottom: 12, border: '1px solid #ccc', padding: 8 }}>
-          <p>{task.description}</p>
-          {task.sourceQuote && <p><em>"{task.sourceQuote}"</em></p>}
-          <button onClick={() => approve(task.id)}>Aprobar</button>
-          <button onClick={() => reject(task.id)}>Rechazar</button>
-        </div>
+        <article key={task.id} className="list-card">
+          <div className="list-card-header"><span className="status-pill">Pendiente</span>{task.assignee && <span className="list-card-meta">{task.assignee}</span>}</div>
+          <p className="list-card-title" style={{ marginTop: 12 }}>{task.description}</p>
+          {task.sourceQuote && <p className="quote">“{task.sourceQuote}”</p>}
+          <div className="actions"><button className="primary-button" onClick={() => approve(task.id)}>Aprobar tarea</button><button className="danger-button" onClick={() => reject(task.id)}>Rechazar</button></div>
+        </article>
       ))}
+      </div>
     </div>
   )
 }

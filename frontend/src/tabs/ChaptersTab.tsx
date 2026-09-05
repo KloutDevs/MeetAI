@@ -1,16 +1,19 @@
 import type { MeetingData } from '../MeetingReview.js'
+import { formatTime } from '../meetingUi.js'
 
 export function ChaptersTab({ data, onSeek }: { data: MeetingData; onSeek: (timestamp: number) => void }) {
-  if (data.chapters.length === 0) return <p>Sin capítulos generados.</p>
+  if (data.chapters.length === 0) return <div className="empty-state">Todavía no se generaron capítulos.</div>
 
   return (
-    <ul>
+    <div className="stack-list">
       {data.chapters.map((chapter, i) => (
-        <li key={i}>
-          <button onClick={() => onSeek(chapter.start)}>{chapter.title}</button>{' '}
-          ({Math.floor(chapter.start)}s – {Math.floor(chapter.end)}s)
-        </li>
+        <article className="list-card" key={i}>
+          <div className="list-card-header">
+            <button className="seek-button" onClick={() => onSeek(chapter.start)} aria-label={`Reproducir ${chapter.title}`}>▷</button>
+            <div className="list-card-copy"><p className="list-card-title">{chapter.title}</p><p className="list-card-meta">{formatTime(chapter.start)} — {formatTime(chapter.end)}</p></div>
+          </div>
+        </article>
       ))}
-    </ul>
+    </div>
   )
 }

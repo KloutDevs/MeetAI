@@ -1,5 +1,6 @@
 // frontend/src/tabs/InsightsTab.tsx
 import type { MeetingData } from '../MeetingReview.js'
+import { formatTime, speakerColor } from '../meetingUi.js'
 
 export function InsightsTab({ data }: { data: MeetingData }) {
   const totalDuration = data.transcriptSegments.reduce((max, s) => Math.max(max, s.end), 0)
@@ -13,15 +14,22 @@ export function InsightsTab({ data }: { data: MeetingData }) {
 
   return (
     <div>
-      <p>Duración total: {Math.floor(totalDuration)}s</p>
-      <h3>Participación</h3>
-      <ul>
+      <h2 className="section-title">Insights</h2>
+      <p className="section-lead">Una lectura rápida de la dinámica de la conversación.</p>
+      <div className="metrics">
+        <div className="metric"><span className="metric-value">{formatTime(totalDuration)}</span><span className="metric-label">Duración hablada</span></div>
+        <div className="metric"><span className="metric-value">{data.participants.length}</span><span className="metric-label">Participantes</span></div>
+        <div className="metric"><span className="metric-value">{data.highlights.length}</span><span className="metric-label">Highlights</span></div>
+      </div>
+      <h3 className="subheading">Participación</h3>
+      <div className="stack-list">
         {Array.from(timeBySpeaker.entries()).map(([speakerId, seconds]) => (
-          <li key={speakerId}>
-            {nameById.get(speakerId) ?? speakerId}: {Math.floor(seconds)}s ({totalDuration > 0 ? Math.round((seconds / totalDuration) * 100) : 0}%)
-          </li>
+          <div className="speaker-card" key={speakerId}>
+            <div className="speaker-head"><span>{nameById.get(speakerId) ?? speakerId}</span><span className="speaker-percent">{Math.floor(seconds)}s · {totalDuration > 0 ? Math.round((seconds / totalDuration) * 100) : 0}%</span></div>
+            <div className="speaker-bar" style={{ marginTop: 10 }}><span className="speaker-segment" style={{ left: 0, width: `${totalDuration > 0 ? (seconds / totalDuration) * 100 : 0}%`, background: speakerColor(speakerId) }} /></div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

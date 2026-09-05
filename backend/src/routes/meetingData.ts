@@ -24,7 +24,13 @@ export function registerMeetingDataRoute(app: FastifyInstance): void {
     ])
 
     return reply.code(200).send({
-      meeting: { id: meeting.id, title: meeting.title },
+      meeting: {
+        id: meeting.id,
+        title: meeting.title,
+        startedAt: meeting.startedAt,
+        endedAt: meeting.endedAt,
+        recordingUrl: meeting.recordingUrl
+      },
       participants: participants.map((p) => ({ id: p.id, name: p.name })),
       tracks: transcriptionJobs.map((j) => ({ participantId: j.participantId, url: j.trackUrl })),
       transcriptionJobs: transcriptionJobs.map((j) => ({

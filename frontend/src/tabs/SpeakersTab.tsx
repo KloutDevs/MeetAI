@@ -1,4 +1,5 @@
 import type { MeetingData } from '../MeetingReview.js'
+import { speakerColor } from '../meetingUi.js'
 
 export function SpeakersTab({ data, onSeek }: { data: MeetingData; onSeek: (timestamp: number) => void }) {
   const totalDuration = data.transcriptSegments.reduce((max, s) => Math.max(max, s.end), 0)
@@ -9,21 +10,33 @@ export function SpeakersTab({ data, onSeek }: { data: MeetingData; onSeek: (time
   }
 
   return (
-    <div>
+    <div className="stack-list">
       {data.participants.map((participant) => {
         const spokenSeconds = timeBySpeaker.get(participant.id) ?? 0
         const percentage = totalDuration > 0 ? Math.round((spokenSeconds / totalDuration) * 100) : 0
         const segments = data.transcriptSegments.filter((s) => s.speakerId === participant.id)
 
         return (
-          <div key={participant.id} style={{ marginBottom: 16 }}>
-            <strong>{participant.name}</strong> — {percentage}% del tiempo hablado
-            <div>
-              {segments.map((segment, i) => (
-                <button key={i} onClick={() => onSeek(segment.start)} style={{ marginRight: 4 }}>
-                  ▶ {Math.floor(segment.start)}s
-                </button>
-              ))}
+          <div key={participant.id} className="speaker-card">
+            <div className="speaker-head"><span>{participant.name}</span><span className="speaker-percent">{percentage}%</span></div>
+            <div className="speaker-track-row">
+              <button className="seek-button" onClick={() => onSeek(segments[0]?.start ?? 0)} aria-label={`Reproducir intervenciones de ${participant.name}`}>▷</button>
+              <div className="speaker-bar">
+                {segments.map((segment, i) => (
+                  <button
+                    key={i}
+                    className="speaker-segment"
+                    onClick={() => onSeek(segment.start)}
+                    aria-label={`Ir a ${Math.floor(segment.start)} segundos`}
+                    style={{
+                      left: `${totalDuration ? (segment.start / totalDuration) * 100 : 0}%`,
+                      width: `${totalDuration ? Math.max(1, ((segment.end - segment.start) / totalDuration) * 100) : 0}%`,
+                      background: speakerColor(participant.id),
+                      border: 0
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )

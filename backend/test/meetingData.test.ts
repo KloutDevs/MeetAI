@@ -38,7 +38,15 @@ describe('GET /meetings/:id/full', () => {
   })
 
   it('aggregates all meeting data into one payload', async () => {
-    findFirstMocks.meetings.mockResolvedValue({ id: 'meeting-1', title: 'Weekly sync' })
+    const startedAt = new Date('2026-01-01T09:00:00Z')
+    const endedAt = new Date('2026-01-01T10:00:00Z')
+    findFirstMocks.meetings.mockResolvedValue({
+      id: 'meeting-1',
+      title: 'Weekly sync',
+      startedAt,
+      endedAt,
+      recordingUrl: 'https://cdn.example.com/meeting-1/recording.mp4'
+    })
     findFirstMocks.summaries.mockResolvedValue({ context: 'ctx', keyPoints: 'points', status: 'completed' })
     findManyMocks.participants.mockResolvedValue([{ id: 'p1', name: 'Ada' }])
     findManyMocks.transcriptSegments.mockResolvedValue([{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
@@ -53,7 +61,13 @@ describe('GET /meetings/:id/full', () => {
 
     expect(response.statusCode).toBe(200)
     const body = response.json()
-    expect(body.meeting).toEqual({ id: 'meeting-1', title: 'Weekly sync' })
+    expect(body.meeting).toEqual({
+      id: 'meeting-1',
+      title: 'Weekly sync',
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+      recordingUrl: 'https://cdn.example.com/meeting-1/recording.mp4'
+    })
     expect(body.participants).toEqual([{ id: 'p1', name: 'Ada' }])
     expect(body.tracks).toEqual([{ participantId: 'p1', url: 'https://bucket.s3.amazonaws.com/p1.ogg' }])
     expect(body.transcriptionJobs).toEqual([{

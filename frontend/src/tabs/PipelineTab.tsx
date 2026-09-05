@@ -61,57 +61,44 @@ export function PipelineTab({
 
   return (
     <div>
-      <h2>Transcripción por pista (Deepgram)</h2>
-      {data.transcriptionJobs.length === 0 && <p>Todavía no se despachó ninguna pista a Deepgram.</p>}
-      <button onClick={retryTranscription} disabled={retrying}>
+      <h2 className="section-title">Procesamiento</h2>
+      <p className="section-lead">Estado técnico de la transcripción y el análisis de la reunión.</p>
+      {data.transcriptionJobs.length === 0 && <div className="empty-state">Todavía no se despachó ninguna pista a Deepgram.</div>}
+      <button className="secondary-button" onClick={retryTranscription} disabled={retrying}>
         {retrying ? 'Reenviando...' : 'Reenviar audio a Deepgram'}
       </button>
       {retryMessage && <p>{retryMessage}</p>}
       {retryFailures.length > 0 && (
-        <ul style={{ color: '#b00' }}>
+        <ul className="error-text">
           {retryFailures.map((f) => (
             <li key={f.participantId}>{nameById.get(f.participantId) ?? f.participantId}: {f.error}</li>
           ))}
         </ul>
       )}
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>Participante</th>
-            <th style={{ textAlign: 'left' }}>Enviado a Deepgram</th>
-            <th style={{ textAlign: 'left' }}>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className="pipeline-grid" style={{ marginTop: 18 }}>
           {data.transcriptionJobs.map((job) => (
-            <tr key={job.trackId}>
-              <td>{nameById.get(job.participantId) ?? job.participantId}</td>
-              <td>{new Date(job.dispatchedAt).toLocaleString()}</td>
-              <td>{STATUS_LABEL[job.status] ?? job.status}</td>
-            </tr>
+            <article className="pipeline-step" key={job.trackId}>
+              <span className="status-pill">{STATUS_LABEL[job.status] ?? job.status}</span>
+              <h3 className="list-card-title" style={{ marginTop: 12 }}>{nameById.get(job.participantId) ?? job.participantId}</h3>
+              <p>{new Date(job.dispatchedAt).toLocaleString()}</p>
+            </article>
           ))}
-        </tbody>
-      </table>
+      </div>
 
-      <h2>Procesamiento de IA (DeepSeek)</h2>
+      <h2 className="subheading">Procesamiento de IA</h2>
       {!allJobsTerminal && <p>Todavía faltan pistas por transcribir — la IA arranca recién cuando todas terminan.</p>}
       {allJobsTerminal && !data.summary && <p>Todas las pistas terminaron, esperando a que la IA arranque a procesar.</p>}
       {data.summary && <p>{SUMMARY_STATUS_LABEL[data.summary.status] ?? data.summary.status}</p>}
 
       {data.summary?.status === 'completed' && (
-        <div>
-          <p>La IA devolvió:</p>
-          <ul>
-            <li>Contexto: {data.summary.context ? 'sí' : 'vacío'}</li>
-            <li>Puntos clave: {data.summary.keyPoints ? 'sí' : 'vacío'}</li>
-            <li>Capítulos: {data.chapters.length}</li>
-            <li>Highlights: {data.highlights.length}</li>
-            <li>Tareas propuestas: {data.proposedTasks.length}</li>
-          </ul>
+        <div className="metrics">
+          <div className="metric"><span className="metric-value">{data.chapters.length}</span><span className="metric-label">Capítulos</span></div>
+          <div className="metric"><span className="metric-value">{data.highlights.length}</span><span className="metric-label">Highlights</span></div>
+          <div className="metric"><span className="metric-value">{data.proposedTasks.length}</span><span className="metric-label">Tareas</span></div>
         </div>
       )}
 
-      <p style={{ color: '#888' }}>Esta pestaña se actualiza sola cada 5 segundos.</p>
+      <p className="list-card-meta">Esta vista se actualiza automáticamente cada 5 segundos.</p>
     </div>
   )
 }
