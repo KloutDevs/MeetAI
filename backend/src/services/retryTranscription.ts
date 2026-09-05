@@ -9,6 +9,20 @@ function trackUrlFor(meetingId: string, participantId: string): string {
   return `${publicUrl}/${meetingId}/${participantId}.ogg`
 }
 
+// A job can be 'completed' with an empty transcript (e.g. the language-
+// detection bug that made Deepgram silently return `words: []` for
+// non-English speech) — that is NOT a real success and must still be
+// retried, unlike a job that's 'completed' with actual words.
+function hasUsableTranscript(words: string | null): boolean {
+  if (!words) return false
+  try {
+    const parsed = JSON.parse(words)
+    return Array.isArray(parsed) && parsed.length > 0
+  } catch {
+    return false
+  }
+}
+
 // Redispatches transcription to Deepgram for every participant of a meeting
 // whose track never reached a 'completed' job — covers the case where
 // LiveKit's egress already uploaded the audio to S3, but the Deepgram
@@ -35,7 +49,7 @@ export async function retryMeetingTranscription(
         where: (j, { eq: eqFn, and: andFn }) => andFn(eqFn(j.meetingId, meetingId), eqFn(j.trackId, trackId))
       })
 
-      if (existingJob?.status === 'completed') {
+      if (existingJob?.status === 'completed' && hasUsableTranscript(existingJob.words)) {
         continue
       }
 

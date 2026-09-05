@@ -29,10 +29,10 @@ describe('retryMeetingTranscription', () => {
     process.env.BACKEND_PUBLIC_URL = 'https://backend.example.com'
   })
 
-  it('redispatches participants with no job and skips already-completed ones', async () => {
+  it('redispatches participants with no job and skips ones already completed with a real transcript', async () => {
     findFirstMock
       .mockResolvedValueOnce(undefined) // p1: never dispatched
-      .mockResolvedValueOnce({ id: 'job-2', status: 'completed' }) // p2: already done
+      .mockResolvedValueOnce({ id: 'job-2', status: 'completed', words: JSON.stringify([{ word: 'hola', start: 0, end: 0.3, confidence: 0.9 }]) }) // p2: already done, real transcript
 
     const result = await retryMeetingTranscription('meeting-1', ['p1', 'p2'])
 
@@ -45,6 +45,16 @@ describe('retryMeetingTranscription', () => {
       callbackBaseUrl: 'https://backend.example.com'
     })
     expect(deleteMock).not.toHaveBeenCalled()
+    expect(result.retried).toEqual(['p1'])
+  })
+
+  it('retries a job that completed with an empty transcript (e.g. the language-detection bug)', async () => {
+    findFirstMock.mockResolvedValueOnce({ id: 'job-1', status: 'completed', words: '[]' })
+
+    const result = await retryMeetingTranscription('meeting-1', ['p1'])
+
+    expect(deleteMock).toHaveBeenCalled()
+    expect(dispatchMock).toHaveBeenCalledTimes(1)
     expect(result.retried).toEqual(['p1'])
   })
 
