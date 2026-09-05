@@ -1,9 +1,11 @@
 import Fastify, { FastifyInstance } from 'fastify'
+import { registerLivekitWebhookRoute } from './routes/livekitWebhook.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: true })
 
   app.get('/health', async () => ({ status: 'ok' }))
+  registerLivekitWebhookRoute(app)
 
   return app
 }
