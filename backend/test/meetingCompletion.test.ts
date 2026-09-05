@@ -116,3 +116,65 @@ describe('checkMeetingCompletion', () => {
     expect(callOrder).toEqual(['delete', 'insert', 'delete', 'insert'])
   })
 })
+
+const generateSummaryMock = vi.fn().mockResolvedValue(undefined)
+vi.mock('../src/services/llmSummary.js', () => ({
+  generateMeetingSummary: (...args: unknown[]) => generateSummaryMock(...args)
+}))
+
+describe('checkMeetingCompletion — AI summary trigger', () => {
+  beforeEach(() => {
+    generateSummaryMock.mockClear()
+    generateSummaryMock.mockResolvedValue(undefined)
+  })
+
+  it('invokes generateMeetingSummary with the merged segments after persisting them', async () => {
+    findManyMock.mockResolvedValue([
+      {
+        status: 'completed',
+        participantId: 'p1',
+        words: JSON.stringify([{ word: 'hola', start: 0, end: 0.3, confidence: 0.9 }])
+      }
+    ])
+
+    await checkMeetingCompletion('meeting-1')
+
+    expect(generateSummaryMock).toHaveBeenCalledWith('meeting-1', [
+      { speakerId: 'p1', start: 0, end: 0.3, text: 'hola' }
+    ])
+  })
+
+  it('does not call generateMeetingSummary when there are no segments to persist', async () => {
+    findManyMock.mockResolvedValue([{ status: 'timeout', participantId: 'p2', words: null }])
+    generateSummaryMock.mockClear()
+
+    await checkMeetingCompletion('meeting-1')
+
+    expect(generateSummaryMock).not.toHaveBeenCalled()
+  })
+
+  it('does not let a rejected generateMeetingSummary reject or throw from checkMeetingCompletion, and logs the error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('LLM exploded')
+    generateSummaryMock.mockRejectedValueOnce(failure)
+
+    findManyMock.mockResolvedValue([
+      {
+        status: 'completed',
+        participantId: 'p1',
+        words: JSON.stringify([{ word: 'hola', start: 0, end: 0.3, confidence: 0.9 }])
+      }
+    ])
+
+    await expect(checkMeetingCompletion('meeting-1')).resolves.toBeUndefined()
+
+    // The .catch handler runs on a microtask after checkMeetingCompletion resolves
+    // (fire-and-forget), so flush the microtask queue before asserting.
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('meeting-1'))
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('LLM exploded'))
+
+    consoleErrorSpy.mockRestore()
+  })
+})
