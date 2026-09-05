@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { DirectFileOutput, EgressClient, TrackType, WebhookReceiver } from 'livekit-server-sdk'
+import { DirectFileOutput, EgressClient, EgressStatus, TrackType, WebhookReceiver } from 'livekit-server-sdk'
 import { dispatchTrackForTranscription } from '../services/deepgramDispatch.js'
 
 const receiver = new WebhookReceiver(
@@ -37,12 +37,13 @@ export function registerLivekitWebhookRoute(app: FastifyInstance): void {
 
       const event = await receiver.receive(body, authHeader)
 
-      // Unlike egressInfo.status below, WebhookEvent.fromJson (the real
-      // decode path used by WebhookReceiver.receive, verified against the
-      // installed livekit-server-sdk@2.9.0 / @livekit/protocol) decodes
-      // proto enum JSON names into their numeric TS enum values, so
-      // event.track.type really is the numeric TrackType and this direct
-      // comparison against TrackType.AUDIO (0) is correct as-is.
+      // WebhookEvent.fromJson (the real decode path used by
+      // WebhookReceiver.receive, verified against the installed
+      // livekit-server-sdk@2.9.0 / @livekit/protocol) decodes proto enum
+      // JSON names into their numeric TS enum values, so event.track.type
+      // really is the numeric TrackType and this direct comparison against
+      // TrackType.AUDIO (0) is correct as-is. Same applies to
+      // event.egressInfo.status vs EgressStatus below.
       if (event.event === 'track_published') {
         if (event.track?.type === TrackType.AUDIO) {
           const roomName = event.room!.name
@@ -56,11 +57,7 @@ export function registerLivekitWebhookRoute(app: FastifyInstance): void {
         return reply.code(200).send({ received: true })
       }
 
-      // The SDK types egressInfo.status as the protobuf EgressStatus enum, but
-      // the webhook payload's JSON representation transmits it as its string
-      // name (protobuf-es JSON convention), hence the cast below.
-      const status = event.egressInfo?.status as unknown as string | undefined
-      if (event.event !== 'egress_ended' || status !== 'EGRESS_COMPLETE') {
+      if (event.event !== 'egress_ended' || event.egressInfo?.status !== EgressStatus.EGRESS_COMPLETE) {
         return reply.code(200).send({ received: true })
       }
 

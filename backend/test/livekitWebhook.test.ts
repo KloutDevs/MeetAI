@@ -23,7 +23,7 @@ vi.mock('livekit-server-sdk', async () => {
 // installed livekit-server-sdk@2.9.0 / @livekit/protocol. So the mocked
 // `receive()` return value below must mirror numeric enum values, not
 // strings, to faithfully stand in for the real SDK.
-const { TrackType } = await vi.importActual<typeof import('livekit-server-sdk')>('livekit-server-sdk')
+const { TrackType, EgressStatus } = await vi.importActual<typeof import('livekit-server-sdk')>('livekit-server-sdk')
 
 const { buildServer } = await import('../src/server.js')
 
@@ -37,7 +37,7 @@ describe('POST /webhooks/livekit-egress', () => {
     receiveMock.mockReturnValue({
       event: 'egress_ended',
       egressInfo: {
-        status: 'EGRESS_COMPLETE',
+        status: EgressStatus.EGRESS_COMPLETE,
         roomName: 'meeting-1',
         fileResults: [
           { filename: 'track-1.ogg', location: 'https://bucket.s3.amazonaws.com/track-1.ogg' }
@@ -55,6 +55,33 @@ describe('POST /webhooks/livekit-egress', () => {
 
     expect(response.statusCode).toBe(200)
     expect(dispatchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dispatch when egress status is a different numeric enum value (regression: guards against string-vs-number confusion)', async () => {
+    receiveMock.mockReturnValue({
+      event: 'egress_ended',
+      egressInfo: {
+        // EgressStatus.EGRESS_FAILED is a real, different numeric member.
+        // If the comparison were ever downgraded to a truthy/string check,
+        // this would incorrectly dispatch.
+        status: EgressStatus.EGRESS_FAILED,
+        roomName: 'meeting-1',
+        fileResults: [
+          { filename: 'track-1.ogg', location: 'https://bucket.s3.amazonaws.com/track-1.ogg' }
+        ]
+      }
+    })
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/livekit-egress',
+      headers: { authorization: 'test-signature' },
+      payload: '{}'
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(dispatchMock).not.toHaveBeenCalled()
   })
 
   it('ignores events that are not egress_ended', async () => {
