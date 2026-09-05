@@ -35,3 +35,7 @@ function buildSegment(words: DeepgramWord[], speakerId: string): TranscriptSegme
     text: words.map((w) => w.word).join(' ')
   }
 }
+
+export function mergeTracks(tracks: TranscriptSegment[][]): TranscriptSegment[] {
+  return tracks.flat().sort((a, b) => a.start - b.start)
+}

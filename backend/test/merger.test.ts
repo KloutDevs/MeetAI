@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { wordsToSegments } from '../src/services/merger.js'
-import type { DeepgramWord } from '../src/types.js'
+import { wordsToSegments, mergeTracks } from '../src/services/merger.js'
+import type { DeepgramWord, TranscriptSegment } from '../src/types.js'
 
 describe('wordsToSegments', () => {
   it('groups consecutive words into one segment when gaps are small', () => {
@@ -33,5 +33,29 @@ describe('wordsToSegments', () => {
 
   it('returns an empty array for no words', () => {
     expect(wordsToSegments([], 'speaker-1')).toEqual([])
+  })
+})
+
+describe('mergeTracks', () => {
+  it('merges segments from multiple tracks ordered by start time', () => {
+    const trackA: TranscriptSegment[] = [
+      { speakerId: 'A', start: 0.0, end: 1.0, text: 'hola' },
+      { speakerId: 'A', start: 5.0, end: 6.0, text: 'chau' }
+    ]
+    const trackB: TranscriptSegment[] = [
+      { speakerId: 'B', start: 1.5, end: 2.5, text: 'que tal' }
+    ]
+
+    const merged = mergeTracks([trackA, trackB])
+
+    expect(merged).toEqual([
+      { speakerId: 'A', start: 0.0, end: 1.0, text: 'hola' },
+      { speakerId: 'B', start: 1.5, end: 2.5, text: 'que tal' },
+      { speakerId: 'A', start: 5.0, end: 6.0, text: 'chau' }
+    ])
+  })
+
+  it('returns an empty array when there are no tracks', () => {
+    expect(mergeTracks([])).toEqual([])
   })
 })
