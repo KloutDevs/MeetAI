@@ -35,22 +35,27 @@ Transcripción:
 ${transcript}${errorNote}`
 }
 
-async function callDeepSeek(prompt: string): Promise<unknown> {
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
+// Groq's API is OpenAI-compatible (same request/response shape as the
+// DeepSeek call this replaced), verified against the real API with this
+// project's exact prompt and schema before switching. openai/gpt-oss-120b
+// is a reasoning model — message.content is still the raw JSON string per
+// the schema, message.reasoning (if present) is ignored.
+async function callLLM(prompt: string): Promise<unknown> {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: 'openai/gpt-oss-120b',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' }
     })
   })
 
   if (!response.ok) {
-    throw new Error(`DeepSeek API returned ${response.status}: ${await response.text()}`)
+    throw new Error(`Groq API returned ${response.status}: ${await response.text()}`)
   }
 
   const body = await response.json() as { choices: Array<{ message: { content: string } }> }
@@ -65,7 +70,7 @@ export async function generateMeetingSummary(meetingId: string, segments: Transc
 
   for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
     try {
-      const raw = await callDeepSeek(buildPrompt(transcript, lastError))
+      const raw = await callLLM(buildPrompt(transcript, lastError))
       const result = LLMResponseSchema.safeParse(raw)
       if (result.success) {
         parsed = result.data

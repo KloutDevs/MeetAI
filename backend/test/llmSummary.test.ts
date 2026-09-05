@@ -15,14 +15,14 @@ const VALID_RESPONSE = {
   proposedTasks: [{ description: 'Enviar el informe', sourceSpeakerId: 'p1', sourceTimestamp: 45, sourceQuote: 'hay que enviar el informe' }]
 }
 
-function deepseekResponse(content: string) {
+function llmResponse(content: string) {
   return {
     ok: true,
     json: async () => ({ choices: [{ message: { content } }] })
   }
 }
 
-function deepseekErrorResponse(status: number, bodyText: string) {
+function llmErrorResponse(status: number, bodyText: string) {
   return {
     ok: false,
     status,
@@ -34,17 +34,17 @@ describe('generateMeetingSummary', () => {
   beforeEach(() => {
     dbInsertMock.mockClear()
     insertValuesMock.mockClear()
-    process.env.DEEPSEEK_API_KEY = 'test-key'
+    process.env.GROQ_API_KEY = 'test-key'
   })
 
   it('parses a valid LLM response and persists summary, chapters, highlights, proposedTasks', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(deepseekResponse(JSON.stringify(VALID_RESPONSE)))
+    const fetchMock = vi.fn().mockResolvedValue(llmResponse(JSON.stringify(VALID_RESPONSE)))
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.deepseek.com/chat/completions',
+      'https://api.groq.com/openai/v1/chat/completions',
       expect.objectContaining({ method: 'POST' })
     )
     expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -56,8 +56,8 @@ describe('generateMeetingSummary', () => {
 
   it('retries once with the validation error embedded when the first response is invalid JSON shape, then succeeds', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(deepseekResponse('{"not": "the right shape"}'))
-      .mockResolvedValueOnce(deepseekResponse(JSON.stringify(VALID_RESPONSE)))
+      .mockResolvedValueOnce(llmResponse('{"not": "the right shape"}'))
+      .mockResolvedValueOnce(llmResponse(JSON.stringify(VALID_RESPONSE)))
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
@@ -71,8 +71,8 @@ describe('generateMeetingSummary', () => {
 
   it('persists a failed summary after two invalid responses', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(deepseekResponse('{"not": "the right shape"}'))
-      .mockResolvedValueOnce(deepseekResponse('{"still": "wrong"}'))
+      .mockResolvedValueOnce(llmResponse('{"not": "the right shape"}'))
+      .mockResolvedValueOnce(llmResponse('{"still": "wrong"}'))
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
@@ -83,7 +83,7 @@ describe('generateMeetingSummary', () => {
 
   it('logs the real underlying error when persisting a failed summary (e.g. insufficient API balance)', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const fetchMock = vi.fn().mockResolvedValue(deepseekErrorResponse(400, 'Insufficient Balance'))
+    const fetchMock = vi.fn().mockResolvedValue(llmErrorResponse(400, 'Insufficient Balance'))
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
@@ -95,8 +95,8 @@ describe('generateMeetingSummary', () => {
 
   it('retries once when the first response is an HTTP error, then succeeds', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(deepseekErrorResponse(401, 'Unauthorized'))
-      .mockResolvedValueOnce(deepseekResponse(JSON.stringify(VALID_RESPONSE)))
+      .mockResolvedValueOnce(llmErrorResponse(401, 'Unauthorized'))
+      .mockResolvedValueOnce(llmResponse(JSON.stringify(VALID_RESPONSE)))
     vi.stubGlobal('fetch', fetchMock)
 
     await generateMeetingSummary('meeting-1', [{ speakerId: 'p1', start: 0, end: 2, text: 'hola' }])
@@ -107,8 +107,8 @@ describe('generateMeetingSummary', () => {
 
   it('persists a failed summary after two HTTP errors without throwing', async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(deepseekErrorResponse(401, 'Unauthorized'))
-      .mockResolvedValueOnce(deepseekErrorResponse(429, 'Rate limited'))
+      .mockResolvedValueOnce(llmErrorResponse(401, 'Unauthorized'))
+      .mockResolvedValueOnce(llmErrorResponse(429, 'Rate limited'))
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
