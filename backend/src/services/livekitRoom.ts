@@ -17,7 +17,7 @@ export async function createMeetingRoom(title: string): Promise<{ meetingId: str
     startedAt: new Date()
   }).returning()
 
-  await roomServiceClient().createRoom({ name: meeting.id })
+  await roomServiceClient().createRoom({ name: meeting.id, emptyTimeout: 30 })
 
   return { meetingId: meeting.id, roomName: meeting.id }
 }

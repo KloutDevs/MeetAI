@@ -32,7 +32,7 @@ describe('createMeetingRoom', () => {
     const result = await createMeetingRoom('Weekly sync')
 
     expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Weekly sync' }))
-    expect(createRoomMock).toHaveBeenCalledWith(expect.objectContaining({ name: result.meetingId }))
+    expect(createRoomMock).toHaveBeenCalledWith(expect.objectContaining({ name: result.meetingId, emptyTimeout: 30 }))
     expect(result.roomName).toBe(result.meetingId)
   })
 })
