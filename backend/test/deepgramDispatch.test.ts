@@ -1,0 +1,61 @@
+// backend/test/deepgramDispatch.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { dispatchTrackForTranscription } from '../src/services/deepgramDispatch.js'
+
+const insertMock = vi.fn()
+const valuesMock = vi.fn(() => ({ returning: () => Promise.resolve([{ id: 'job-1' }]) }))
+
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    insert: (...args: unknown[]) => {
+      insertMock(...args)
+      return { values: valuesMock }
+    }
+  }
+}))
+
+describe('dispatchTrackForTranscription', () => {
+  beforeEach(() => {
+    insertMock.mockClear()
+    valuesMock.mockClear()
+    process.env.DEEPGRAM_API_KEY = 'test-key'
+  })
+
+  it('calls Deepgram listen endpoint with url and callback, then stores the job', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ request_id: 'dg-req-1' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await dispatchTrackForTranscription({
+      meetingId: 'meeting-1',
+      trackId: 'track-1',
+      participantId: 'participant-1',
+      trackUrl: 'https://bucket.s3.amazonaws.com/track-1.ogg',
+      callbackBaseUrl: 'https://backend.example.com'
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('https://api.deepgram.com/v1/listen'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Token test-key' })
+      })
+    )
+
+    const [, options] = fetchMock.mock.calls[0]
+    const body = JSON.parse(options.body)
+    expect(body.url).toBe('https://bucket.s3.amazonaws.com/track-1.ogg')
+    expect(body.callback).toContain('https://backend.example.com/webhooks/deepgram')
+    expect(body.callback).toContain('meetingId=meeting-1')
+    expect(body.callback).toContain('trackId=track-1')
+
+    expect(valuesMock).toHaveBeenCalledWith(expect.objectContaining({
+      meetingId: 'meeting-1',
+      trackId: 'track-1',
+      participantId: 'participant-1',
+      status: 'pending'
+    }))
+  })
+})
