@@ -57,4 +57,34 @@ describe('POST /webhooks/deepgram', () => {
     expect(updateSetMock).not.toHaveBeenCalled()
     expect(checkCompletionMock).not.toHaveBeenCalled()
   })
+
+  it('is idempotent: does nothing if the job already timed out', async () => {
+    findJobMock.mockResolvedValue({ id: 'job-1', status: 'timeout', meetingId: 'meeting-1' })
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/deepgram?meetingId=meeting-1&trackId=track-1',
+      payload: { results: { channels: [{ alternatives: [{ words: [] }] }] } }
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(updateSetMock).not.toHaveBeenCalled()
+    expect(checkCompletionMock).not.toHaveBeenCalled()
+  })
+
+  it('marks the job failed when the callback body has no usable results', async () => {
+    findJobMock.mockResolvedValue({ id: 'job-1', status: 'pending', meetingId: 'meeting-1' })
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/deepgram?meetingId=meeting-1&trackId=track-1',
+      payload: {}
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(updateSetMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+    expect(checkCompletionMock).toHaveBeenCalledWith('meeting-1')
+  })
 })

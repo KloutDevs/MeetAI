@@ -1,4 +1,5 @@
 // backend/src/services/meetingCompletion.ts
+import { eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { transcriptSegments } from '../db/schema.js'
 import { wordsToSegments, mergeTracks } from './merger.js'
@@ -29,15 +30,24 @@ export async function checkMeetingCompletion(meetingId: string): Promise<void> {
     })
 
   const merged = mergeTracks(tracks)
-  if (merged.length === 0) return
 
-  await db.insert(transcriptSegments).values(
-    merged.map((segment) => ({
-      meetingId,
-      speakerId: segment.speakerId,
-      start: segment.start,
-      end: segment.end,
-      text: segment.text
-    }))
-  )
+  // Idempotency: a late/retried callback (e.g. a track that already timed out)
+  // can trigger this function again for the same meeting. Delete any
+  // previously persisted segments before re-inserting so repeated calls
+  // converge to the same final state instead of accumulating duplicates.
+  await db.transaction(async (tx) => {
+    await tx.delete(transcriptSegments).where(eq(transcriptSegments.meetingId, meetingId))
+
+    if (merged.length === 0) return
+
+    await tx.insert(transcriptSegments).values(
+      merged.map((segment) => ({
+        meetingId,
+        speakerId: segment.speakerId,
+        start: segment.start,
+        end: segment.end,
+        text: segment.text
+      }))
+    )
+  })
 }
