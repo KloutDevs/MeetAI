@@ -50,6 +50,22 @@ describe('POST /proposed-tasks/:id/approve', () => {
     expect(response.statusCode).toBe(404)
     expect(insertValuesMock).not.toHaveBeenCalled()
   })
+
+  it('returns 409 and does not insert a second Task when already aprobada', async () => {
+    findFirstMock.mockResolvedValue({ id: 'pt-1', description: 'Enviar informe', status: 'aprobada' })
+
+    const app = buildServer()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/proposed-tasks/pt-1/approve',
+      payload: { assignee: 'Ada' }
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toEqual({ error: 'already_processed', status: 'aprobada' })
+    expect(insertValuesMock).not.toHaveBeenCalled()
+    expect(updateSetMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('POST /proposed-tasks/:id/reject', () => {
@@ -68,5 +84,16 @@ describe('POST /proposed-tasks/:id/reject', () => {
     expect(response.statusCode).toBe(200)
     expect(insertValuesMock).not.toHaveBeenCalled()
     expect(updateSetMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'rechazada' }))
+  })
+
+  it('returns 409 and does not change status when already aprobada', async () => {
+    findFirstMock.mockResolvedValue({ id: 'pt-1', description: 'Enviar informe', status: 'aprobada' })
+
+    const app = buildServer()
+    const response = await app.inject({ method: 'POST', url: '/proposed-tasks/pt-1/reject', payload: {} })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toEqual({ error: 'already_processed', status: 'aprobada' })
+    expect(updateSetMock).not.toHaveBeenCalled()
   })
 })

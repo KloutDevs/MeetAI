@@ -17,6 +17,10 @@ export function registerProposedTasksRoute(app: FastifyInstance): void {
       return reply.code(404).send({ error: 'not_found' })
     }
 
+    if (proposedTask.status !== 'pendiente') {
+      return reply.code(409).send({ error: 'already_processed', status: proposedTask.status })
+    }
+
     await db.insert(tasks).values({
       proposedTaskId: proposedTask.id,
       description: proposedTask.description,
@@ -35,6 +39,10 @@ export function registerProposedTasksRoute(app: FastifyInstance): void {
 
     if (!proposedTask) {
       return reply.code(404).send({ error: 'not_found' })
+    }
+
+    if (proposedTask.status !== 'pendiente') {
+      return reply.code(409).send({ error: 'already_processed', status: proposedTask.status })
     }
 
     await db.update(proposedTasks).set({ status: 'rechazada' }).where(eq(proposedTasks.id, proposedTask.id))
